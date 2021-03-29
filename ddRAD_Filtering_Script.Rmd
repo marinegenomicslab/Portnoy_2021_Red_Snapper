@@ -1,0 +1,90 @@
+## Jon Puritz Red Snapper filtering script for Red Snapper ##
+##             Called La Ultimata La Ultimata              ##
+
+# Filter loci for high missing data (>75%) and reads with low quality out
+vcftools --vcf TotalRawSNPs.vcf --max-missing 0.25 --recode --recode-INFO-all --minQ 10 --out TRS.g25.q10
+rm TotalRawSNPs.vcf &
+
+# Minimum allele frequency filter
+# https://github.com/jpuritz/dDocent/scripts/untested/multi.maf.sh
+bash multi.maf.sh TRS.g25.q10.recode.vcf 0.005 TRSg25q10maf005
+gzip TRS.g25.q10.recode.vcf &
+
+# Filter allelic balance, quality vs depth, strand representation and paired read representation
+bash filter_missing_ind.sh TRSg25q10maf005.recode.vcf TRSg25q10maf005MI
+#yes
+#0.6
+gzip TRSg25q10maf005.recode.vcf &
+
+# Filter minimum depth
+vcftools --vcf TRSg25q10maf005MI.recode.vcf --minDP 3 --recode --recode-INFO-all --out TRSg25q10maf005MIdp3
+gzip TRSg25q10maf005MI.recode.vcf &
+
+# Filter for loci missing more than 25% missing data
+vcftools --vcf TRSg25q10maf005MIdp3.recode.vcf --max-missing 0.75 --recode --recode-INFO-all --out TRSdp3g75
+gzip TRSg25q10maf005MIdp3.recode.vcf &
+
+# Filter individuls with missing data > 27.5%
+filter_missing_ind.sh TRSdp3g75.recode.vcf TRSdp3g75MI
+#yes
+#0.275
+gzip TRSdp3g75.recode.vcf &
+
+# Filter for loci missing more than 10% missing data
+vcftools --vcf TRSdp3g75MI.recode.vcf --max-missing 0.9 --recode --recode-INFO-all --out TRSdp3g75MIg9
+gzip TRSdp3g75MI.recode.vcf &
+
+# Make a population set without small data groups
+mawk '$2 !~ /TX/ && $2 !~ /LA/' popmap > popmap.nosmall
+
+# Testing different combinations of percent missing data and number of populations for filtering
+# https://github.com/jpuritz/dDocent/scripts/untested/pop_missing_filter.sh
+pop_missing_filter.sh TRSdp3g75MIg9.recode.vcf popmap.nosmall 0.1 2 TRSdp3g75MIg9p1.2
+pop_missing_filter.sh TRSdp3g75MIg9.recode.vcf popmap.nosmall 0.1 1 TRSdp3g75MIg9p1.1
+pop_missing_filter.sh TRSdp3g75MIg9.recode.vcf popmap.nosmall 0.2 1 TRSdp3g75MIg9p2.1
+
+# Removing loci with super high depth
+dDocent_filters TRSdp3g75MIg9p2.1.recode.vcf TRSdp3g75MIg9p2.1 PE 145
+gzip TRSdp3g75MIg9p1.2.recode.vcf &
+gzip TRSdp3g75MIg9p1.1.recode.vcf &
+gzip TRSdp3g75MIg9p2.1.recode.vcf &
+
+vcftools --vcf TRSdp3g75MIg9p2.1.FIL.recode.vcf --exclude-positions bad.dup.loci --recode --recode-INFO-all --out TRSdp3g75MIg9p2.1Fdup
+gzip TRSdp3g75MIg9p2.1.FIL.recode.vcf &
+
+# Breaking Multiallelic states
+vcfallelicprimitives -k -g TRSdp3g75MIg9p2.1Fdup.recode.vcf | sed 's:\.|\.:\.\/\.:g' > TRSdp3g75MIg9p2.1Fdup.prim
+gzip TRSdp3g75MIg9p2.1Fdup.recode.vcf &
+
+# Removing indels
+vcftools --vcf TRSdp3g75MIg9p2.1Fdup.prim --remove-indels --recode --recode-INFO-all --out SNP.TRSdp3g75MIg9p2.1Fdup
+gzip TRSdp3g75MIg9p2.1Fdup.prim &
+
+# Applying a minor allele frequncy of 1%
+vcftools --vcf SNP.TRSdp3g75MIg9p2.1Fdup.recode.vcf --maf 0.01 --recode --recode-INFO-all --out SNP.TRSdp3g75MIg9p2.1Fdupmaf01
+gzip SNP.TRSdp3g75MIg9p2.1Fdup.recode.vcf &
+
+# Applying a minor allele frequncy of 5%
+vcftools --vcf SNP.TRSdp3g75MIg9p2.1Fdup.recode.vcf --maf 0.05 --recode --recode-INFO-all --out SNP.TRSdp3g75MIg9p2.1Fdupmaf05
+gzip SNP.TRSdp3g75MIg9p2.1Fdup.recode.vcf &
+
+# Removing library bias
+vcftools --vcf SNP.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf --exclude-positions LibBiasLoci.old --recode --recode-INFO-all --out SNP.TRSdp3g75MIg9p2.1Fdupmaf05LB
+vcftools --vcf SNP.TRSdp3g75MIg9p2.1Fdupmaf01.recode.vcf --exclude-positions LibBiasLoci.old --recode --recode-INFO-all --out SNP.TRSdp3g75MIg9p2.1Fdupmaf01LB
+gzip SNP.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf &
+gzip SNP.TRSdp3g75MIg9p2.1Fdupmaf01.recode.vcf &
+
+# Moving data to a directoory for haplotyping
+ln -s /home/afields/Workspace/Red_Snapper/analysis/Oct2020/haplotyping /home/afields/Workspace/Red_Snapper/analysis/JP
+cp SNP.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf haplotyping/
+cd haplotyping
+
+# Preparing the reference
+samtools faidx reference.fasta 
+bwa index reference.fasta
+
+# Haplotyping the data
+rad_haplotyper.pl -v SNP.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf --genomic_ref -r reference.fasta -b all_mapped.bed -p popmap -x 10 -m 0.8 -o Loci.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf -g Loci.TRSdp3g75MIg9p2.1Fdupmaf05.recode.gen -e 2>&1 | tee hap.log
+
+# Removing filtered reads from the vcf file
+grep -Fwv -f SNPs_to_remove.txt SNP.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf > Loci.TRSdp3g75MIg9p2.1Fdupmaf05.recode.vcf
