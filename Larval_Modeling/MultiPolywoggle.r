@@ -1,5 +1,5 @@
 #!/bin/R
-#Usage: Rscript MultiPolywoggle.R <path to files> <particle.data prefix>
+#Usage: Rscript MultiPolywoggle.r <path to files> <particle.data prefix>
 
 #Get arguements
 args <- commandArgs(trailingOnly=TRUE)
