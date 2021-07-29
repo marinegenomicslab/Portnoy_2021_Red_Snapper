@@ -1,5 +1,5 @@
 #!/bin/R
-#Usage: Rscript Polywoggle.R <particle.data> <Output.txt>
+#Usage: Rscript Polywoggle.r <particle.data> <Output.txt>
 
 #Get arguements
 args <- commandArgs(trailingOnly=TRUE)
