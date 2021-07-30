@@ -1,0 +1,75 @@
+### Analyzing Adult Red Snapper movement data ###
+
+#Import Data
+{```{R}
+dat <- read.table("Adults_movement.txt", head=T)
+```}
+
+# Looking for best fitting model
+#Reference: https://cran.r-project.org/web/packages/fitdistrplus/vignettes/paper2JSS.pdf
+#Load libraries
+{```{R}
+library("fitdistrplus")
+library('scales')
+library('CaDENCE')
+library('corrplot')
+library('GGally')
+```}
+
+#Plotting Data
+{```{R}
+plotdist(dat$Dispersion_m.day, histo = TRUE, demp = TRUE)
+
+descdist(dat$Dispersion_m.day, boot = 1000)
+```}
+
+#Trying various methods and models
+{```{R}
+#Weibull
+fw <- fitdist(dat$Dispersion_m.day, start=list(shape=0.6, scale=87.6), "weibull", method= "mse")
+plot(fw)
+fw
+
+#Zero-inflated Weibull
+fwz <- fitdist(dat$Dispersion_m.day, start=list(prob=0.65, shape=0.63, scale=87.6), "bweibull", method= "mle")
+plot(fwz)
+fwz
+
+#Zero-inflated Gamma
+fgz <- fitdist(dat$Dispersion_m.day, "bgamma", start=list(prob=0.65, shape=0.25, scale=700))
+plot(fgz)
+fgz
+
+#Zero-inflated Log Normal
+flz <- fitdist(dat$Dispersion_m.day, "blnorm", start=list(prob=0.65, meanlog=1.5, sdlog=2.1))
+plot(flz)
+flz
+```}
+
+#Plotting all of the models together
+{```{R}
+tiff("Adult_movement.tif", res=300, width=5000, height=4000)
+par(mfrow = c(2, 2))
+plot.legend <- c("zero-Weibull", "zero-lognormal", "zero-gamma", "Weibull")
+denscomp(list(fwz, flz, fgz, fw), legendtext = plot.legend, ylim=c(0,0.005))
+qqcomp(list(fwz, flz, fgz, fw), legendtext = plot.legend)
+cdfcomp(list(fwz, flz, fgz, fw), legendtext = plot.legend)
+ppcomp(list(fwz, flz, fgz, fw), legendtext = plot.legend)
+dev.off()
+```}
+
+#Goodness of fit for the models
+{```{R}
+gofstat(list(fwz, flz, fgz, fw), fitnames = c("zero-Weibull", "lognorm", "gamma", "Weibull"))
+```}
+
+#Evaluating the best fit model
+{```{R}
+boot.flz <- bootdist(flz, niter = 1001)
+summary(boot.flz)
+quantile(boot.flz, probs = 0.05)
+
+p1 <- ggpairs(boot.flz$estim) + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())
+
+ggsave("zero_lognormal_correlation.tif", p1, device="tiff")
+```}
