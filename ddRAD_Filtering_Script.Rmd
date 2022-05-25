@@ -10,7 +10,7 @@ rm TotalRawSNPs.vcf &
 bash multi.maf.sh TRS.g25.q10.recode.vcf 0.005 TRSg25q10maf005
 gzip TRS.g25.q10.recode.vcf &
 
-# Filter allelic balance, quality vs depth, strand representation and paired read representation
+# Filter individuls with missing data > 60% 
 bash filter_missing_ind.sh TRSg25q10maf005.recode.vcf TRSg25q10maf005MI
 #yes
 #0.6
@@ -43,12 +43,13 @@ pop_missing_filter.sh TRSdp3g75MIg9.recode.vcf popmap.nosmall 0.1 2 TRSdp3g75MIg
 pop_missing_filter.sh TRSdp3g75MIg9.recode.vcf popmap.nosmall 0.1 1 TRSdp3g75MIg9p1.1
 pop_missing_filter.sh TRSdp3g75MIg9.recode.vcf popmap.nosmall 0.2 1 TRSdp3g75MIg9p2.1
 
-# Removing loci with super high depth
+# Filter allelic balance, quality vs depth, strand representation, paired read representation and super high depth
 dDocent_filters TRSdp3g75MIg9p2.1.recode.vcf TRSdp3g75MIg9p2.1 PE 145
 gzip TRSdp3g75MIg9p1.2.recode.vcf &
 gzip TRSdp3g75MIg9p1.1.recode.vcf &
 gzip TRSdp3g75MIg9p2.1.recode.vcf &
 
+# Remove bad loci
 vcftools --vcf TRSdp3g75MIg9p2.1.FIL.recode.vcf --exclude-positions bad.dup.loci --recode --recode-INFO-all --out TRSdp3g75MIg9p2.1Fdup
 gzip TRSdp3g75MIg9p2.1.FIL.recode.vcf &
 
